@@ -28,6 +28,7 @@ type Config struct {
     Mounts     []Mount           // bind mounts (e.g., repo -> /workspace)
     Env        map[string]string // env vars (git token, agent ID, etc.)
     WorkingDir string            // container working directory (default: /workspace)
+    Cmd        []string          // command to run (default: image's entrypoint/cmd)
 }
 
 type Mount struct {
@@ -36,8 +37,7 @@ type Mount struct {
 }
 
 type Container struct {
-    ID     string
-    Status Status
+    ID string
 }
 
 type Status string
@@ -58,7 +58,7 @@ type Manager interface {
     Start(ctx context.Context, id string) error
     Stop(ctx context.Context, id string, timeout time.Duration) error
     Remove(ctx context.Context, id string) error
-    Wait(ctx context.Context, id string) (<-chan int, <-chan error)
+    Wait(ctx context.Context, id string) (<-chan int64, <-chan error)
     Status(ctx context.Context, id string) (Status, error)
 }
 ```
@@ -77,7 +77,7 @@ func NewDockerManager() (*DockerManager, error)
 
 **Method behavior:**
 
-- **Create** — calls `client.ContainerCreate`. Translates `Config` to Docker API types. Sets labels `elephant.managed=true` and `elephant.container-id=<id>` for identification and cleanup. Does not auto-start.
+- **Create** — calls `client.ContainerCreate`. Translates `Config` to Docker API types. Validates that `Image` is non-empty. Sets label `elephant.managed=true` for identification and cleanup. Does not auto-start.
 - **Start** — calls `client.ContainerStart`.
 - **Stop** — calls `client.ContainerStop` with the given timeout. Sends SIGTERM, then SIGKILL after timeout.
 - **Remove** — calls `client.ContainerRemove` with `force: true` and `removeVolumes: true`.
@@ -94,7 +94,7 @@ func NewDockerManager() (*DockerManager, error)
 
 ```go
 type RunResult struct {
-    ExitCode int
+    ExitCode int64
 }
 
 func Run(ctx context.Context, mgr Manager, cfg Config) (*RunResult, error)
