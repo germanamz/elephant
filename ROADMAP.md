@@ -5,16 +5,16 @@
 ### Initiative: Project Scaffolding
 
 #### Story: Go Module & CI Setup
-- [ ] **Task:** Initialize Go module
-- [ ] **Task:** Set up CI pipeline
+- [x] **Task:** Initialize Go module
+- [x] **Task:** Set up CI pipeline
 
 #### Story: Code Quality Tooling
-- [ ] **Task:** Configure golangci-lint for static analysis
-- [ ] **Task:** Configure Lefthook for git hooks (pre-commit, pre-push)
-- [ ] **Task:** Configure Conform for conventional commit enforcement
+- [x] **Task:** Configure golangci-lint for static analysis
+- [x] **Task:** Configure Lefthook for git hooks (pre-commit, pre-push)
+- [x] **Task:** Configure Conform for conventional commit enforcement
 
 #### Story: Build & Release Pipeline
-- [ ] **Task:** Set up GoReleaser for cross-platform binary builds (macOS, Linux, Windows)
+- [x] **Task:** Set up GoReleaser for cross-platform binary builds (macOS, Linux, Windows)
 
 ### Initiative: Docker Container Management
 
