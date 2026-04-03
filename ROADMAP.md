@@ -23,6 +23,13 @@
 - [ ] **Task:** Container teardown on task completion
 - [ ] **Task:** Ephemeral container lifecycle (spin up per task, tear down after)
 
+### Initiative: Elephant MCP Server
+
+#### Story: Agent Lifecycle Tools
+- [ ] **Task:** Implement minimal MCP server with lifecycle tools (`report_status`, `mark_done`, `create_pr`)
+- [ ] **Task:** Expose MCP server to agent containers (network-based)
+- [ ] **Task:** Timeout safety net for unresponsive agents
+
 ### Initiative: Agent Execution
 
 #### Story: Headless Agent Runner
