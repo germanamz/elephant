@@ -19,9 +19,9 @@
 ### Initiative: Docker Container Management
 
 #### Story: Container Lifecycle
-- [ ] **Task:** Spawn containers with codebase mounted
-- [ ] **Task:** Container teardown on task completion
-- [ ] **Task:** Ephemeral container lifecycle (spin up per task, tear down after)
+- [x] **Task:** Spawn containers with codebase mounted
+- [x] **Task:** Container teardown on task completion
+- [x] **Task:** Ephemeral container lifecycle (spin up per task, tear down after)
 
 ### Initiative: Elephant MCP Server
 
