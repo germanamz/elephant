@@ -3,7 +3,7 @@ BUILD_DIR := bin
 GO := go
 GOFLAGS := -v
 
-.PHONY: all build clean test test-race vet lint run install setup-hooks
+.PHONY: all build clean test test-race test-integration vet lint run install setup-hooks
 
 all: build
 
@@ -18,6 +18,9 @@ test:
 
 test-race:
 	$(GO) test $(GOFLAGS) -race ./...
+
+test-integration:
+	$(GO) test $(GOFLAGS) -tags integration ./...
 
 vet:
 	$(GO) vet ./...
