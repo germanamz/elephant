@@ -21,16 +21,18 @@ const stopTimeout = 10 * time.Second
 // Run executes the full ephemeral container lifecycle: create, start, wait
 // for exit, and remove. The container is always removed, even on failure.
 // If ctx is cancelled, the container is stopped then removed.
-func Run(ctx context.Context, mgr Manager, cfg Config) (*RunResult, error) {
+func Run(ctx context.Context, mgr Manager, cfg Config) (result *RunResult, retErr error) {
 	ctr, err := mgr.Create(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("run: %w", err)
 	}
 
 	// From this point on, always remove the container.
-	var removeErr error
 	defer func() {
-		removeErr = mgr.Remove(context.WithoutCancel(ctx), ctr.ID)
+		removeErr := mgr.Remove(context.WithoutCancel(ctx), ctr.ID)
+		if removeErr != nil && retErr == nil {
+			retErr = fmt.Errorf("run: container finished but remove failed: %w", removeErr)
+		}
 	}()
 
 	if err := mgr.Start(ctx, ctr.ID); err != nil {
@@ -41,11 +43,7 @@ func Run(ctx context.Context, mgr Manager, cfg Config) (*RunResult, error) {
 
 	select {
 	case code := <-exitCh:
-		result := &RunResult{ExitCode: code}
-		if removeErr != nil {
-			return result, fmt.Errorf("run: container finished but remove failed: %w", removeErr)
-		}
-		return result, nil
+		return &RunResult{ExitCode: code}, nil
 	case err := <-waitErrCh:
 		return nil, fmt.Errorf("run: %w", err)
 	case <-ctx.Done():
