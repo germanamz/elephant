@@ -12,8 +12,7 @@ import (
 
 const (
 	defaultWorkingDir = "/workspace"
-	labelManaged      = "elephant.managed"
-	labelContainerID  = "elephant.container-id"
+	labelManaged = "elephant.managed"
 )
 
 // Compile-time check that DockerManager implements Manager.
@@ -35,8 +34,17 @@ func NewDockerManager() (*DockerManager, error) {
 	return &DockerManager{client: c}, nil
 }
 
+// Close closes the underlying Docker client connection.
+func (m *DockerManager) Close() error {
+	return m.client.Close()
+}
+
 // Create creates a new container from the given config but does not start it.
 func (m *DockerManager) Create(ctx context.Context, cfg Config) (*Container, error) {
+	if cfg.Image == "" {
+		return nil, fmt.Errorf("create container: image is required")
+	}
+
 	workingDir := cfg.WorkingDir
 	if workingDir == "" {
 		workingDir = defaultWorkingDir
@@ -69,7 +77,8 @@ func (m *DockerManager) Create(ctx context.Context, cfg Config) (*Container, err
 	}
 
 	hostCfg := &container.HostConfig{
-		Mounts: mounts,
+		Mounts:      mounts,
+		NetworkMode: "bridge",
 	}
 
 	resp, err := m.client.ContainerCreate(ctx, containerCfg, hostCfg, nil, nil, "")
