@@ -159,3 +159,89 @@ func TestIntegration_EnvVars(t *testing.T) {
 		t.Fatal("timed out waiting for container")
 	}
 }
+
+func TestIntegration_ContextCancellation(t *testing.T) {
+	mgr := newTestManager(t)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start a long-running container (sleep 300 seconds).
+	ctr, err := mgr.Create(ctx, Config{
+		Image: testImage,
+		Cmd:   []string{"sleep", "300"},
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	containerID := ctr.ID
+
+	if err := mgr.Start(ctx, containerID); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+
+	// Verify it's running.
+	status, err := mgr.Status(ctx, containerID)
+	if err != nil {
+		t.Fatalf("Status failed: %v", err)
+	}
+	if status != StatusRunning {
+		t.Fatalf("expected status %s, got %s", StatusRunning, status)
+	}
+
+	// Cancel the context, then stop and remove manually (simulating what Run does).
+	cancel()
+
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer stopCancel()
+
+	if err := mgr.Stop(stopCtx, containerID, 5*time.Second); err != nil {
+		t.Fatalf("Stop failed: %v", err)
+	}
+
+	// Verify it stopped.
+	status, err = mgr.Status(stopCtx, containerID)
+	if err != nil {
+		t.Fatalf("Status after stop failed: %v", err)
+	}
+	if status != StatusStopped {
+		t.Fatalf("expected status %s after stop, got %s", StatusStopped, status)
+	}
+
+	// Clean up.
+	if err := mgr.Remove(stopCtx, containerID); err != nil {
+		t.Fatalf("Remove failed: %v", err)
+	}
+}
+
+func TestIntegration_RunEndToEnd(t *testing.T) {
+	mgr := newTestManager(t)
+
+	// Use Run to execute a container that exits with code 0.
+	result, err := Run(context.Background(), mgr, Config{
+		Image: testImage,
+		Cmd:   []string{"echo", "hello from Run"},
+	})
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d", result.ExitCode)
+	}
+}
+
+func TestIntegration_RunNonZeroExit(t *testing.T) {
+	mgr := newTestManager(t)
+
+	// Use Run to execute a container that exits with code 1.
+	result, err := Run(context.Background(), mgr, Config{
+		Image: testImage,
+		Cmd:   []string{"sh", "-c", "exit 1"},
+	})
+	if err != nil {
+		t.Fatalf("Run should not error on non-zero exit, got: %v", err)
+	}
+
+	if result.ExitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", result.ExitCode)
+	}
+}
