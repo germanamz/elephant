@@ -161,3 +161,48 @@ func TestRun_RemoveFailure(t *testing.T) {
 		t.Fatal("expected error from Remove failure, got nil")
 	}
 }
+
+func TestRun_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	mgr := &mockManager{
+		OnWait: func(ctx context.Context, id string) (<-chan int64, <-chan error) {
+			// Simulate a long-running container — never sends on either channel.
+			// The context cancellation should trigger Stop.
+			exitCh := make(chan int64)
+			errCh := make(chan error)
+			return exitCh, errCh
+		},
+	}
+
+	// Cancel the context immediately after Wait is called.
+	originalOnWait := mgr.OnWait
+	mgr.OnWait = func(ctx context.Context, id string) (<-chan int64, <-chan error) {
+		exitCh, errCh := originalOnWait(ctx, id)
+		cancel()
+		return exitCh, errCh
+	}
+
+	_, err := Run(ctx, mgr, Config{Image: "alpine"})
+	if err == nil {
+		t.Fatal("expected error from context cancellation, got nil")
+	}
+
+	// Verify Stop was called
+	hasStop := false
+	hasRemove := false
+	for _, c := range mgr.Calls {
+		if c.Method == "Stop" {
+			hasStop = true
+		}
+		if c.Method == "Remove" {
+			hasRemove = true
+		}
+	}
+	if !hasStop {
+		t.Error("expected Stop to be called on context cancellation")
+	}
+	if !hasRemove {
+		t.Error("expected Remove to be called on context cancellation")
+	}
+}
