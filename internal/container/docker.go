@@ -44,11 +44,11 @@ func (m *DockerManager) Create(ctx context.Context, cfg Config) (*Container, err
 	}
 
 	mounts := make([]mount.Mount, len(cfg.Mounts))
-	for i, m := range cfg.Mounts {
+	for i, mt := range cfg.Mounts {
 		mounts[i] = mount.Mount{
 			Type:   mount.TypeBind,
-			Source: m.Source,
-			Target: m.Target,
+			Source: mt.Source,
+			Target: mt.Target,
 		}
 	}
 
