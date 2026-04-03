@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultWorkingDir = "/workspace"
-	labelManaged = "elephant.managed"
+	labelManaged      = "elephant.managed"
 )
 
 // Compile-time check that DockerManager implements Manager.
