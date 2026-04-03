@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -14,6 +15,9 @@ const (
 	labelManaged      = "elephant.managed"
 	labelContainerID  = "elephant.container-id"
 )
+
+// Compile-time check that DockerManager implements Manager.
+var _ Manager = (*DockerManager)(nil)
 
 // DockerManager implements Manager using the Docker Engine API.
 type DockerManager struct {
@@ -115,4 +119,49 @@ func (m *DockerManager) Status(ctx context.Context, id string) (Status, error) {
 	default:
 		return Status(info.State.Status), nil
 	}
+}
+
+// Stop stops a running container. It sends SIGTERM and waits up to the given
+// timeout before sending SIGKILL.
+func (m *DockerManager) Stop(ctx context.Context, id string, timeout time.Duration) error {
+	timeoutSeconds := int(timeout.Seconds())
+
+	err := m.client.ContainerStop(ctx, id, container.StopOptions{
+		Timeout: &timeoutSeconds,
+	})
+	if err != nil {
+		return fmt.Errorf("stop container %s: %w", id, err)
+	}
+
+	return nil
+}
+
+// Wait blocks until the container stops and returns channels for the exit code
+// and any error. The exit code channel receives exactly one value. The error
+// channel receives a value only if the wait itself fails.
+func (m *DockerManager) Wait(ctx context.Context, id string) (<-chan int64, <-chan error) {
+	exitCh := make(chan int64, 1)
+	errCh := make(chan error, 1)
+
+	statusCh, dockerErrCh := m.client.ContainerWait(ctx, id, container.WaitConditionNotRunning)
+
+	go func() {
+		defer close(exitCh)
+		defer close(errCh)
+
+		select {
+		case status := <-statusCh:
+			if status.Error != nil {
+				errCh <- fmt.Errorf("container wait error: %s", status.Error.Message)
+				return
+			}
+			exitCh <- status.StatusCode
+		case err := <-dockerErrCh:
+			errCh <- fmt.Errorf("wait for container %s: %w", id, err)
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+		}
+	}()
+
+	return exitCh, errCh
 }
