@@ -44,16 +44,19 @@ func Provision(params ProvisionParams) (Config, string, error) {
 	}
 
 	cfg := params.Base
-	if cfg.Env == nil {
-		cfg.Env = make(map[string]string)
+
+	env := make(map[string]string, len(params.Base.Env)+len(secrets)+2)
+	for k, v := range params.Base.Env {
+		env[k] = v
 	}
-
-	cfg.Env[EnvAgentToken] = token
-	cfg.Env[EnvMCPEndpoint] = params.MCPEndpoint
-
 	for k, v := range secrets {
-		cfg.Env[k] = v
+		env[k] = v
 	}
+
+	// Write reserved vars last so secrets cannot overwrite them.
+	env[EnvAgentToken] = token
+	env[EnvMCPEndpoint] = params.MCPEndpoint
+	cfg.Env = env
 
 	return cfg, token, nil
 }
