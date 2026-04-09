@@ -245,3 +245,45 @@ func TestIntegration_RunNonZeroExit(t *testing.T) {
 		t.Fatalf("expected exit code 1, got %d", result.ExitCode)
 	}
 }
+
+func TestIntegration_ProvisionedContainer(t *testing.T) {
+	mgr := newTestManager(t)
+
+	params := ProvisionParams{
+		Base: Config{
+			Image: testImage,
+			Cmd:   []string{"sh", "-c", "test -n \"$ELEPHANT_AGENT_TOKEN\" && test \"$ELEPHANT_MCP_ENDPOINT\" = \"http://localhost:9090\" && test \"$MY_SECRET\" = \"s3cret\""},
+		},
+		MCPEndpoint: "http://localhost:9090",
+		Project:     "testproj",
+		Secrets: SecretConfig{
+			Projects: map[string][]string{
+				"testproj": {"MY_SECRET"},
+			},
+		},
+		LookupSecret: func(name string) (string, bool) {
+			if name == "MY_SECRET" {
+				return "s3cret", true
+			}
+			return "", false
+		},
+	}
+
+	cfg, token, err := Provision(params)
+	if err != nil {
+		t.Fatalf("Provision failed: %v", err)
+	}
+
+	if token == "" {
+		t.Fatal("expected non-empty token from Provision")
+	}
+
+	result, err := Run(context.Background(), mgr, cfg)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0 (all env vars present and correct), got %d", result.ExitCode)
+	}
+}
