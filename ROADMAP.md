@@ -24,11 +24,11 @@
 - [x] **Task:** Ephemeral container lifecycle (spin up per task, tear down after)
 
 #### Story: Container Provisioning
-- [ ] **Task:** Inject auth token as env var at container spawn
-- [ ] **Task:** Inject scoped secrets as env vars at container spawn
-- [ ] **Task:** Inject MCP endpoint for agent-to-Elephant communication
-- [ ] **Task:** Standby mode — keep container alive after PR creation for review feedback
-- [ ] **Task:** Tear down container after PR merge or task resolution
+- [x] **Task:** Inject auth token as env var at container spawn
+- [x] **Task:** Inject scoped secrets as env vars at container spawn
+- [x] **Task:** Inject MCP endpoint for agent-to-Elephant communication
+- [x] **Task:** Standby mode — keep container alive after PR creation for review feedback
+- [x] **Task:** Tear down container after PR merge or task resolution
 
 ### Initiative: Tusk Integration
 
