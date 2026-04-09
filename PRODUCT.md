@@ -52,21 +52,35 @@ The lifecycle of a parent agent session:
 6. If the review passes, the parent marks itself done and merges upward
 7. If the review fails, the parent can spawn corrective child tasks
 
-### Three-System Architecture
+### Two-System Architecture
 
-- **Elephant** — the orchestrator. Manages Docker environments, agent lifecycle, git branching, session persistence, and the TUI
+- **Elephant** — the orchestrator. Manages Docker environments, agent lifecycle, git branching, session persistence, secret management, and the TUI
 - **Brain** (WIP) — defines the WBS structure and scoped agent skills/instructions. Supports parallel and sequential execution strategies. [github.com/germanamz/brain](https://github.com/germanamz/brain)
-- **Tusk** — CLI task management with a built-in MCP server. Agents interact with Tusk via MCP to pick up tasks, report progress, and mark completion. Acts as the shared state layer. [github.com/germanamz/tusk](https://github.com/germanamz/tusk)
 
 ## Architecture
 
 ### Elephant (Orchestrator)
 
 - Written in Go for performance and cross-platform distribution
-- Manages agent lifecycle — spawns, monitors, and terminates agents in Docker containers
+- Embeds Tusk as a library for task management, workflow enforcement, and agent coordination
+- Manages agent lifecycle — spawns, monitors, suspends, and tears down agents in Docker containers
 - Drives the git branching strategy — creates branches per WBS level, manages merges, triggers parent-level reviews
+- Exposes an MCP server to agent containers — thin wrapper over Tusk's SDK plus git operations
+- Handles agent authentication (per-agent tokens) and secret injection (least-privilege)
 - Calls agents in headless mode (`--print --output-format json`) and tracks conversation state for session resumption
 - Provides the TUI for monitoring, interaction, and control
+
+### Tusk (Embedded Task Engine)
+
+Elephant embeds [Tusk](https://github.com/germanamz/tusk) as a Go library for task management, workflow enforcement, and agent coordination. Rather than running as a separate MCP server, Tusk is imported directly via its SDK (`github.com/germanamz/tusk`).
+
+Tusk provides:
+- **Task hierarchy** — parent-child nesting to arbitrary depth, matching the WBS structure
+- **Workflow enforcement** — configurable status transitions with optimistic locking
+- **Player management** — agents register as Tusk "players", claim tasks to prevent overlapping work
+- **Task queue** — atomic `Pop` operation assigns the highest-urgency unclaimed task to an agent
+- **Relations** — typed edges (blocks, relates_to, duplicates) with cycle detection
+- **Urgency scoring** — multi-factor ranking for task prioritization
 
 ### Brain (WBS & Skills)
 
@@ -74,17 +88,28 @@ The lifecycle of a parent agent session:
 - Provides scoped instructions and skills so agents know how to operate at each WBS level
 - Supports both parallel and sequential execution strategies
 
-### Tusk (Task Management)
+### Elephant MCP Server
 
-- CLI task management tool with built-in MCP server
-- Agents interact with Tusk via MCP to pick up tasks, report progress, and mark completion
-- Acts as the shared state layer between Elephant and its agents
+Elephant exposes its own MCP server (network-based) to agent containers. This is a thin wrapper over Tusk's SDK plus Elephant-specific operations:
+
+- **Task tools** — create, claim, complete, annotate, pop (delegated to Tusk)
+- **Git tools** — `create_pr` and other git operations that are Elephant's domain
+- **Progress reporting** — agents report status via Tusk task annotations
+
+**Agent authentication:** Each agent receives a unique token (injected as an env var at container spawn). Every MCP call must include this token. Elephant validates the token maps to the correct player before executing any operation, preventing agents from impersonating each other.
+
+**Secret management:** Elephant manages secrets (API keys, credentials) and injects them as env vars at container spawn time, scoped per task/project. Agents receive only the secrets relevant to their work — least-privilege by default.
 
 ### Docker Isolation Layer
 
 - Each agent runs in its own container with the relevant codebase mounted
 - Agents can operate without permission restrictions — the container _is_ the sandbox
-- Containers are ephemeral — spun up per task, torn down after completion
+- At spawn time, Elephant injects:
+  - An **auth token** unique to the agent, used for all MCP communication
+  - **Scoped secrets** (API keys, credentials) required for the agent's task
+  - **MCP endpoint** for communicating back to Elephant
+- After completing work, agents create a PR and enter **standby mode** — the container stays alive so the agent can address review feedback on its PR/MR
+- Containers are torn down only after the PR is merged (or the task is otherwise resolved)
 
 ### TUI
 
@@ -100,7 +125,7 @@ The user and a top-level agent collaboratively define the product vision and WBS
 
 ### Phase 2 — Execution
 
-Leaf-level agents (subtasks/spikes) execute in isolated Docker containers. They interact with Tusk via MCP to manage task state. Elephant monitors progress through the TUI.
+Leaf-level agents (subtasks/spikes) execute in isolated Docker containers. They interact with Elephant's MCP server to manage task state (backed by Tusk's SDK). Elephant monitors progress through the TUI.
 
 ### Phase 3 — Cascading Review
 
@@ -141,14 +166,15 @@ When all children of a WBS node complete:
 ### Phase 1 — Foundation
 
 - Project scaffolding (Go module, CI, linting, commit enforcement)
-- Docker container management (spawn, mount codebase, teardown)
+- Docker container management (spawn, mount codebase, teardown, standby mode, secret/token injection)
+- Tusk SDK integration (embedded task engine, player management, task hierarchy)
+- Elephant MCP server (thin wrapper over Tusk, agent auth, git tools, secret management)
 - Agent execution via Claude Code headless mode (`--print --output-format json`)
 - Session persistence and resumption
 - Basic TUI with agent status monitoring
 
 ### Phase 2 — Orchestration
 
-- Tusk integration via MCP for task state management
 - Brain integration for WBS definition and agent skills
 - Git branching strategy (auto-create branches per WBS level, manage merges)
 - Cascading review workflow (resume parent sessions, review merged results)
