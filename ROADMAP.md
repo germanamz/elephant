@@ -23,11 +23,41 @@
 - [x] **Task:** Container teardown on task completion
 - [x] **Task:** Ephemeral container lifecycle (spin up per task, tear down after)
 
+#### Story: Container Provisioning
+- [ ] **Task:** Inject auth token as env var at container spawn
+- [ ] **Task:** Inject scoped secrets as env vars at container spawn
+- [ ] **Task:** Inject MCP endpoint for agent-to-Elephant communication
+- [ ] **Task:** Standby mode — keep container alive after PR creation for review feedback
+- [ ] **Task:** Tear down container after PR merge or task resolution
+
+### Initiative: Tusk Integration
+
+#### Story: Embedded Task Engine
+- [ ] **Task:** Add Tusk SDK dependency (`github.com/germanamz/tusk`)
+- [ ] **Task:** Initialize Tusk Client with Elephant-managed config (DB path, workflows, projects)
+- [ ] **Task:** Configure WBS-aligned task hierarchy (map WBS levels to Tusk parent-child nesting)
+- [ ] **Task:** Register agents as Tusk players on container spawn
+
 ### Initiative: Elephant MCP Server
 
-#### Story: Agent Lifecycle Tools
-- [ ] **Task:** Implement minimal MCP server with lifecycle tools (`report_status`, `mark_done`, `create_pr`)
-- [ ] **Task:** Expose MCP server to agent containers (network-based)
+#### Story: MCP Server Core
+- [ ] **Task:** Implement network-based MCP server accessible from agent containers
+- [ ] **Task:** Token-based authentication middleware (validate agent token on every call)
+
+#### Story: Task Tools
+- [ ] **Task:** Expose Tusk task operations as MCP tools (create, claim, complete, annotate, pop)
+- [ ] **Task:** Scope tool access — agents can only operate on tasks they are assigned to
+- [ ] **Task:** Progress reporting via Tusk task annotations
+
+#### Story: Git Tools
+- [ ] **Task:** `create_pr` — agent requests PR creation for its branch
+- [ ] **Task:** Additional git operations as needed (TBD based on agent workflow needs)
+
+#### Story: Secret Management
+- [ ] **Task:** Secret store configuration (config file defining available secrets per project/task type)
+- [ ] **Task:** Secret injection at container spawn (env vars, least-privilege)
+
+#### Story: Safety
 - [ ] **Task:** Timeout safety net for unresponsive agents
 
 ### Initiative: Agent Execution
@@ -63,12 +93,6 @@
 - [ ] **Task:** Load WBS definitions from Brain
 - [ ] **Task:** Apply scoped agent skills/instructions per WBS level
 - [ ] **Task:** Support parallel and sequential execution strategies
-
-### Initiative: Tusk Integration
-
-#### Story: MCP Task Management
-- [ ] **Task:** Connect to Tusk MCP server from agent containers
-- [ ] **Task:** Agents pick up tasks, report progress, and mark completion via MCP
 
 ### Initiative: Cascading Review Workflow
 
