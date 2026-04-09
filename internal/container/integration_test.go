@@ -287,3 +287,66 @@ func TestIntegration_ProvisionedContainer(t *testing.T) {
 		t.Fatalf("expected exit code 0 (all env vars present and correct), got %d", result.ExitCode)
 	}
 }
+
+func TestIntegration_StandbyLifecycle(t *testing.T) {
+	mgr := newTestManager(t)
+
+	// Start a long-running container in standby mode.
+	s, err := StartStandby(context.Background(), mgr, Config{
+		Image: testImage,
+		Cmd:   []string{"sleep", "300"},
+	})
+	if err != nil {
+		t.Fatalf("StartStandby failed: %v", err)
+	}
+
+	// Verify the container is running.
+	status, err := mgr.Status(context.Background(), s.ID())
+	if err != nil {
+		t.Fatalf("Status failed: %v", err)
+	}
+	if status != StatusRunning {
+		t.Fatalf("expected status %s, got %s", StatusRunning, status)
+	}
+
+	// Teardown the container.
+	if err := s.Teardown(context.Background()); err != nil {
+		t.Fatalf("Teardown failed: %v", err)
+	}
+
+	// Verify the container is gone (inspect should fail).
+	_, err = mgr.Status(context.Background(), s.ID())
+	if err == nil {
+		t.Fatal("expected error inspecting removed container, got nil")
+	}
+}
+
+func TestIntegration_StandbyWaitThenTeardown(t *testing.T) {
+	mgr := newTestManager(t)
+
+	// Start a container that exits quickly.
+	s, err := StartStandby(context.Background(), mgr, Config{
+		Image: testImage,
+		Cmd:   []string{"echo", "done"},
+	})
+	if err != nil {
+		t.Fatalf("StartStandby failed: %v", err)
+	}
+
+	// Wait for it to exit on its own.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := s.Wait(ctx)
+	if err != nil {
+		t.Fatalf("Wait failed: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d", result.ExitCode)
+	}
+
+	// Teardown should still work (remove the stopped container).
+	if err := s.Teardown(context.Background()); err != nil {
+		t.Fatalf("Teardown after exit failed: %v", err)
+	}
+}
