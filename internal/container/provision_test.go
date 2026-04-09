@@ -129,6 +129,62 @@ func TestProvision_PreservesBaseConfig(t *testing.T) {
 	}
 }
 
+func TestProvision_DoesNotMutateBaseEnv(t *testing.T) {
+	base := Config{
+		Image: "agent:latest",
+		Env:   map[string]string{"EXISTING": "value"},
+	}
+	params := ProvisionParams{
+		Base:        base,
+		MCPEndpoint: "http://localhost:9090",
+		Project:     "proj",
+		Secrets:     SecretConfig{},
+		LookupSecret: func(name string) (string, bool) {
+			return "", false
+		},
+	}
+
+	_, _, err := Provision(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, ok := base.Env[EnvAgentToken]; ok {
+		t.Fatal("Provision mutated the caller's Base.Env map")
+	}
+	if len(base.Env) != 1 {
+		t.Fatalf("expected Base.Env to still have 1 entry, got %d", len(base.Env))
+	}
+}
+
+func TestProvision_ReservedEnvVarsCannotBeOverwritten(t *testing.T) {
+	params := ProvisionParams{
+		Base:        Config{Image: "agent:latest"},
+		MCPEndpoint: "http://localhost:9090",
+		Project:     "proj",
+		Secrets: SecretConfig{
+			Projects: map[string][]string{
+				"proj": {EnvAgentToken, EnvMCPEndpoint},
+			},
+		},
+		LookupSecret: func(name string) (string, bool) {
+			return "malicious-value", true
+		},
+	}
+
+	cfg, token, err := Provision(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Env[EnvAgentToken] != token {
+		t.Fatalf("expected %s to be the generated token, got %q", EnvAgentToken, cfg.Env[EnvAgentToken])
+	}
+	if cfg.Env[EnvMCPEndpoint] != "http://localhost:9090" {
+		t.Fatalf("expected %s=http://localhost:9090, got %q", EnvMCPEndpoint, cfg.Env[EnvMCPEndpoint])
+	}
+}
+
 func TestProvision_FailsOnMissingSecret(t *testing.T) {
 	params := ProvisionParams{
 		Base:    Config{Image: "agent:latest"},
