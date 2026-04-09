@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestStartStandby_HappyPath(t *testing.T) {
@@ -122,5 +123,51 @@ func TestStandby_Teardown_RemoveFailure(t *testing.T) {
 	err = s.Teardown(context.Background())
 	if err == nil {
 		t.Fatal("expected error from Remove failure, got nil")
+	}
+}
+
+func TestStandby_Wait_ExitCode(t *testing.T) {
+	mgr := &mockManager{
+		OnWait: func(ctx context.Context, id string) (<-chan int64, <-chan error) {
+			exitCh := make(chan int64, 1)
+			errCh := make(chan error, 1)
+			exitCh <- 0
+			return exitCh, errCh
+		},
+	}
+
+	s, err := StartStandby(context.Background(), mgr, Config{Image: "alpine"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result, err := s.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait failed: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d", result.ExitCode)
+	}
+}
+
+func TestStandby_Wait_ContextCancellation(t *testing.T) {
+	mgr := &mockManager{
+		OnWait: func(ctx context.Context, id string) (<-chan int64, <-chan error) {
+			// Never sends — simulates a running container.
+			return make(chan int64), make(chan error)
+		},
+	}
+
+	s, err := StartStandby(context.Background(), mgr, Config{Image: "alpine"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err = s.Wait(ctx)
+	if err == nil {
+		t.Fatal("expected error from context cancellation, got nil")
 	}
 }
