@@ -8,6 +8,7 @@ import (
 
 	"github.com/germanamz/tusk"
 	"github.com/germanamz/tusk/config"
+	"github.com/germanamz/tusk/service"
 )
 
 const (
@@ -72,6 +73,16 @@ func NewEngine(cfg Config) (*Engine, error) {
 
 	return &Engine{client: client}, nil
 }
+
+// Tasks returns the underlying Tusk TaskService for operations
+// that don't need Elephant-specific wrapping (claim, complete, pop, annotate, etc.).
+func (e *Engine) Tasks() *service.TaskService { return e.client.Tasks }
+
+// Players returns the underlying Tusk PlayerService.
+func (e *Engine) Players() *service.PlayerService { return e.client.Players }
+
+// Relations returns the underlying Tusk RelationService.
+func (e *Engine) Relations() *service.RelationService { return e.client.Relations }
 
 // Close releases the underlying Tusk client and database connection.
 func (e *Engine) Close() error {
