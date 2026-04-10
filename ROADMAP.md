@@ -33,10 +33,10 @@
 ### Initiative: Tusk Integration
 
 #### Story: Embedded Task Engine
-- [ ] **Task:** Add Tusk SDK dependency (`github.com/germanamz/tusk`)
-- [ ] **Task:** Initialize Tusk Client with Elephant-managed config (DB path, workflows, projects)
-- [ ] **Task:** Configure WBS-aligned task hierarchy (map WBS levels to Tusk parent-child nesting)
-- [ ] **Task:** Register agents as Tusk players on container spawn
+- [x] **Task:** Add Tusk SDK dependency (`github.com/germanamz/tusk`)
+- [x] **Task:** Initialize Tusk Client with Elephant-managed config (DB path, workflows, projects)
+- [x] **Task:** Configure WBS-aligned task hierarchy (map WBS levels to Tusk parent-child nesting)
+- [x] **Task:** Register agents as Tusk players on container spawn
 
 ### Initiative: Elephant MCP Server
 
